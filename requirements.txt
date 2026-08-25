@@ -1,0 +1,14 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pandas==2.3.3
+scikit-learn==1.8.0
+pytest==8.3.3
+httpx==0.28.1
+
+# Only needed once you have fine-tuned weights to load (see README) --
+# installing torch pulls a large (400MB-2GB) download. If you only want to
+# run the baseline classifier and API without a transformer loaded yet,
+# these two can be commented out; the service degrades gracefully and
+# reports transformer_loaded: false instead of crashing.
+torch==2.13.0
+transformers==5.15.1

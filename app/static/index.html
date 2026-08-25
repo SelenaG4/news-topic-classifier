@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>News Topic Classifier</title>
+<style>
+  :root {
+    --navy: #1F3864;
+    --navy-light: #EEF2FB;
+    --navy-mid: #DCE6F7;
+    --ink: #1a2536;
+    --muted: #5b6b85;
+    --border: #d7e0f0;
+    --good: #1f7a4d;
+    --warn-bg: #FBF3E4;
+    --warn-border: #D9A441;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; color: var(--ink); background: #fff; line-height: 1.55; }
+  header { background: var(--navy); color: #fff; padding: 28px 24px 24px; }
+  header .inner { max-width: 1040px; margin: 0 auto; }
+  header h1 { margin: 0 0 6px; font-size: 1.6rem; }
+  header p.tagline { margin: 0 0 14px; color: #cfdbf3; font-size: 0.98rem; }
+  header .links a { color: #fff; text-decoration: none; border: 1px solid rgba(255,255,255,0.4); padding: 5px 12px; border-radius: 6px; font-size: 0.85rem; margin-right: 8px; display: inline-block; }
+  header .links a:hover { background: rgba(255,255,255,0.12); }
+  main { max-width: 1040px; margin: 0 auto; padding: 24px; }
+  section { margin-bottom: 34px; }
+  h2 { font-size: 1.15rem; color: var(--navy); margin: 0 0 10px; }
+  p.lead { color: var(--muted); margin: 0 0 14px; font-size: 0.95rem; }
+  .card { border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; background: #fff; }
+  textarea#input-text { width: 100%; min-height: 90px; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 0.95rem; resize: vertical; }
+  .examples { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+  .example-btn { border: 1px solid var(--navy-mid); background: var(--navy-light); color: var(--navy); border-radius: 999px; padding: 5px 12px; font-size: 0.82rem; cursor: pointer; }
+  button.primary { background: var(--navy); color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-size: 0.92rem; cursor: pointer; margin-top: 6px; }
+  button.primary:hover { opacity: 0.92; }
+  .predictions { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px; }
+  @media (max-width: 700px) { .predictions { grid-template-columns: 1fr; } }
+  .pred-card { border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .pred-card h3 { margin: 0 0 8px; font-size: 0.95rem; color: var(--navy); }
+  .pred-label { font-size: 1.3rem; font-weight: 700; color: var(--ink); }
+  .pred-conf { font-size: 0.85rem; color: var(--muted); margin-bottom: 8px; }
+  .prob-bar-row { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; margin: 3px 0; }
+  .prob-bar-row .name { width: 70px; color: var(--muted); }
+  .prob-bar-bg { flex: 1; background: var(--navy-light); border-radius: 4px; height: 8px; position: relative; }
+  .prob-bar-fg { background: var(--navy); border-radius: 4px; height: 8px; position: absolute; left: 0; top: 0; }
+  .not-loaded { background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: 8px; padding: 12px 14px; font-size: 0.85rem; color: #6b4e10; }
+  table.scores { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 10px; }
+  table.scores th, table.scores td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  table.scores th { color: var(--navy); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.02em; }
+  .stat-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+  .stat-tile { border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; min-width: 140px; }
+  .stat-tile .stat-label { font-size: 0.76rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+  .stat-tile .stat-value { font-size: 1.4rem; color: var(--navy); font-weight: 700; margin-top: 2px; }
+  footer { border-top: 1px solid var(--border); padding: 20px 24px 32px; max-width: 1040px; margin: 0 auto; font-size: 0.85rem; color: var(--muted); }
+  footer a { color: var(--navy); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="inner">
+    <h1>News Topic Classifier</h1>
+    <p class="tagline">Real AG News data &middot; a classical baseline trained live &middot; a fine-tuned transformer compared against it honestly</p>
+    <div class="links">
+      <a href="/docs">API reference (Swagger)</a>
+      <a href="https://github.com/SelenaG4/news-topic-classifier" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <section>
+    <h2>How this works</h2>
+    <p class="lead">
+      Every headline below gets classified into one of four AG News topics &mdash; World, Sports, Business,
+      or Sci/Tech &mdash; by two different models: a <strong>classical baseline</strong> (TF-IDF features +
+      logistic regression, trained fresh on real data when this service starts) and a
+      <strong>fine-tuned DistilBERT transformer</strong>. Both are shown side by side so the transformer's
+      accuracy has to earn its extra complexity against a real number, not an assumed one.
+    </p>
+  </section>
+
+  <section>
+    <h2>Try it</h2>
+    <div class="card">
+      <textarea id="input-text" placeholder="Type or paste a news headline / short article...">Apple unveils new chip that doubles battery life in latest MacBook lineup</textarea>
+      <div class="examples" id="examples"></div>
+      <button class="primary" id="classify-btn">Classify</button>
+
+      <div class="predictions" id="predictions" style="display:none">
+        <div class="pred-card">
+          <h3>Baseline (TF-IDF + Logistic Regression)</h3>
+          <div id="baseline-out"></div>
+        </div>
+        <div class="pred-card">
+          <h3>Fine-tuned DistilBERT</h3>
+          <div id="transformer-out"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Baseline &mdash; measured, not assumed</h2>
+    <p class="lead">Trained on 40,000 real AG News articles, evaluated on the full 7,600-article held-out test set, both real and unmodified from the original benchmark.</p>
+    <div class="card">
+      <div class="stat-row" id="baseline-stats">Loading&hellip;</div>
+      <table class="scores">
+        <thead><tr><th>Class</th><th>F1 score</th></tr></thead>
+        <tbody id="per-class-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  Data: AG News (Zhang, Zhao &amp; LeCun, 2015), a standard public topic-classification benchmark.
+  Baseline: scikit-learn TF-IDF + logistic regression, trained live in this service. Transformer:
+  DistilBERT, fine-tuned separately (see
+  <a href="https://github.com/SelenaG4/news-topic-classifier" target="_blank" rel="noopener">GitHub</a>
+  for why, and the notebook used to do it).
+</footer>
+
+<script>
+const EXAMPLES = [
+  "Apple unveils new chip that doubles battery life in latest MacBook lineup",
+  "Manchester United comes from behind to win 3-2 in dramatic derby finish",
+  "Central bank raises interest rates for the third time this year",
+  "Rebel forces clash with government troops near the capital as ceasefire talks stall",
+  "Researchers develop new battery technology that could triple electric vehicle range",
+];
+
+async function api(path, options) {
+  const res = await fetch(path, options);
+  if (!res.ok) throw new Error(`${path} -> ${res.status}`);
+  return res.json();
+}
+
+function fmtPct(n) { return (n * 100).toFixed(1) + "%"; }
+
+function renderProbBars(probabilities) {
+  const rows = Object.entries(probabilities).sort((a, b) => b[1] - a[1]);
+  return rows
+    .map(
+      ([name, p]) => `
+      <div class="prob-bar-row">
+        <span class="name">${name}</span>
+        <div class="prob-bar-bg"><div class="prob-bar-fg" style="width:${p * 100}%"></div></div>
+        <span>${fmtPct(p)}</span>
+      </div>`
+    )
+    .join("");
+}
+
+function renderPrediction(container, pred) {
+  container.innerHTML = `
+    <div class="pred-label">${pred.label}</div>
+    <div class="pred-conf">${fmtPct(pred.confidence)} confidence</div>
+    ${renderProbBars(pred.probabilities)}
+  `;
+}
+
+async function classify() {
+  const text = document.getElementById("input-text").value.trim();
+  if (!text) return;
+  const predictionsDiv = document.getElementById("predictions");
+  predictionsDiv.style.display = "grid";
+  document.getElementById("baseline-out").textContent = "Loading…";
+  document.getElementById("transformer-out").textContent = "Loading…";
+
+  const result = await api("/predict", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+
+  renderPrediction(document.getElementById("baseline-out"), result.baseline);
+
+  if (result.transformer) {
+    renderPrediction(document.getElementById("transformer-out"), result.transformer);
+  } else {
+    document.getElementById("transformer-out").innerHTML = `
+      <div class="not-loaded">
+        No fine-tuned transformer loaded yet. ${result.transformer_status || ""}
+      </div>`;
+  }
+}
+
+async function loadBaselineStats() {
+  const m = await api("/baseline/metrics");
+  document.getElementById("baseline-stats").innerHTML = `
+    <div class="stat-tile"><div class="stat-label">Accuracy</div><div class="stat-value">${fmtPct(m.accuracy)}</div></div>
+    <div class="stat-tile"><div class="stat-label">Macro F1</div><div class="stat-value">${m.macro_f1.toFixed(3)}</div></div>
+    <div class="stat-tile"><div class="stat-label">Train / test size</div><div class="stat-value" style="font-size:1.1rem">${m.n_train.toLocaleString()} / ${m.n_test.toLocaleString()}</div></div>
+  `;
+  const body = document.getElementById("per-class-body");
+  body.innerHTML = m.class_order
+    .map((cls) => `<tr><td>${cls}</td><td>${m.per_class_f1[cls].toFixed(3)}</td></tr>`)
+    .join("");
+}
+
+function loadExamples() {
+  const wrap = document.getElementById("examples");
+  wrap.innerHTML = EXAMPLES.map((ex) => `<button class="example-btn">${ex.length > 40 ? ex.slice(0, 40) + "…" : ex}</button>`).join("");
+  Array.from(wrap.children).forEach((btn, i) => {
+    btn.onclick = () => {
+      document.getElementById("input-text").value = EXAMPLES[i];
+    };
+  });
+}
+
+document.getElementById("classify-btn").addEventListener("click", classify);
+loadExamples();
+loadBaselineStats().catch((err) => {
+  document.getElementById("baseline-stats").textContent = "Failed to load: " + err.message;
+});
+</script>
+
+</body>
+</html>
