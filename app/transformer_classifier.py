@@ -63,16 +63,35 @@ class TransformerClassifier:
     def predict(self, text: str) -> TransformerPrediction:
         if not self.loaded:
             raise RuntimeError(self.load_error or "Transformer model not loaded")
+        return self.predict_batch([text])[0]
+
+    def predict_batch(self, texts: list[str], batch_size: int = 32) -> list[TransformerPrediction]:
+        """Same model, batched -- for bulk scoring (e.g. scripts/evaluate_transformer.py
+        running all 7,600 test-set rows) rather than the single-request API path.
+        Batching the tokenizer + forward pass, instead of looping `predict()` one row at
+        a time, is what keeps a full-test-set evaluation to well under a minute on CPU
+        instead of several minutes -- the model and math are identical either way, this
+        only changes how many rows go through the network at once.
+        """
+        if not self.loaded:
+            raise RuntimeError(self.load_error or "Transformer model not loaded")
 
         import torch
 
-        inputs = self._tokenizer(text, return_tensors="pt", truncation=True, max_length=256)
-        with torch.no_grad():
-            logits = self._model(**inputs).logits[0]
-        probs = torch.softmax(logits, dim=-1)
-        best_idx = int(torch.argmax(probs))
-        return TransformerPrediction(
-            label=self._id2label[best_idx],
-            confidence=float(probs[best_idx]),
-            probabilities={self._id2label[i]: float(p) for i, p in enumerate(probs)},
-        )
+        results: list[TransformerPrediction] = []
+        for start in range(0, len(texts), batch_size):
+            batch = texts[start : start + batch_size]
+            inputs = self._tokenizer(batch, return_tensors="pt", truncation=True, max_length=256, padding=True)
+            with torch.no_grad():
+                logits = self._model(**inputs).logits
+            probs = torch.softmax(logits, dim=-1)
+            for row in probs:
+                best_idx = int(torch.argmax(row))
+                results.append(
+                    TransformerPrediction(
+                        label=self._id2label[best_idx],
+                        confidence=float(row[best_idx]),
+                        probabilities={self._id2label[i]: float(p) for i, p in enumerate(row)},
+                    )
+                )
+        return results
