@@ -184,10 +184,10 @@ learned the hard way while deploying an earlier project in this portfolio.
 
 ### Live demo
 
-Deployed on Render's free tier: **[link added once deployed]**. The live service installs
-`requirements.txt` only (the light base), so it runs the **classical baseline** — submit a
-headline on the landing page and get a real, live topic prediction — and honestly reports the
-transformer as not loaded (`transformer_loaded: false`). That's deliberate, not a shortcut: a
+Deployed on Render's free tier: **https://news-topic-classifier-3szi.onrender.com/**. The live
+service installs `requirements.txt` only (the light base), so it runs the **classical baseline**
+— submit a headline on the landing page and get a real, live topic prediction — and honestly
+reports the transformer as not loaded (`transformer_loaded: false`). That's deliberate, not a shortcut: a
 free 512 MB instance can't hold PyTorch plus a fine-tuned DistilBERT in memory, so the
 transformer is a **local** capability (see "Running it"), while its real, measured advantage over
 the baseline is documented and reproducible above (the comparison table, the chart, and
