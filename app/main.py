@@ -43,7 +43,7 @@ def _startup() -> None:
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 def landing_page() -> str:
-    return (STATIC_DIR / "index.html").read_text()
+    return (STATIC_DIR / "index.html").read_text(encoding="utf-8")
 
 
 @app.get("/health")
