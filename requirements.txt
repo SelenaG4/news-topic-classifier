@@ -12,3 +12,9 @@ httpx==0.28.1
 # reports transformer_loaded: false instead of crashing.
 torch==2.13.0
 transformers==5.15.1
+
+# Only needed to run scripts/evaluate_transformer.py (logs the baseline-vs-
+# transformer comparison to MLflow and saves the comparison chart) -- same
+# reasoning as above, not required just to run the API.
+mlflow==3.15.1
+matplotlib==3.10.9

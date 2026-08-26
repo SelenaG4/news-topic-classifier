@@ -68,30 +68,37 @@ project was built in can also reach `raw.githubusercontent.com` (unlike `hugging
 - `data/ag_news_train_sample.csv` — 40,000 rows, stratified 10,000 per class (`random.seed(42)`), used to train the baseline.
 - `data/ag_news_test.csv` — 7,600 rows, the full official AG News test set, used to evaluate both models on an identical split.
 
-## Measured results (classical baseline)
+## Measured results
 
 TF-IDF (unigrams + bigrams, 30,000 features) + logistic regression, trained on the 40,000-row
 sample, evaluated on the full 7,600-row test set:
 
-| Metric | Score |
-|---|---|
-| Accuracy | 90.5% |
-| Macro F1 | 0.904 |
+| Metric | Baseline | Fine-tuned DistilBERT | Delta |
+|---|---|---|---|
+| Accuracy | 90.5% | 94.8% | +4.3pp |
+| Macro F1 | 0.904 | 0.948 | +0.043 |
 
-| Class | F1 |
-|---|---|
-| World | 0.909 |
-| Sports | 0.961 |
-| Business | 0.869 |
-| Sci/Tech | 0.878 |
+| Class | Baseline F1 | DistilBERT F1 | Delta |
+|---|---|---|---|
+| World | 0.909 | 0.960 | +0.051 |
+| Sports | 0.961 | 0.988 | +0.027 |
+| Business | 0.869 | 0.918 | +0.049 |
+| Sci/Tech | 0.878 | 0.924 | +0.046 |
 
-Sports is the easiest class to separate (distinctive vocabulary); Business and Sci/Tech are the
-most confused with each other, which shows up in the confusion matrix (`GET /baseline/metrics`)
-— tech-company earnings and product-launch headlines genuinely straddle both categories, so this
-isn't a bug, it's a real property of the task.
+![Per-class F1 by model: fine-tuned DistilBERT beats the TF-IDF baseline on all four AG News classes, with the largest gains on World, Business, and Sci/Tech](docs/transformer_vs_baseline.png)
 
-The transformer's numbers go here once `notebooks/finetune_distilbert_ag_news.ipynb` has been
-run — see the section above.
+Sports is the easiest class to separate for both models (distinctive vocabulary, smallest gap
+between them); Business and Sci/Tech are the most confused with each other for the baseline
+(shows up in the confusion matrix at `GET /baseline/metrics`) — tech-company earnings and
+product-launch headlines genuinely straddle both categories — and those are exactly the two
+classes where the transformer's fine-tuning earns the biggest gain, which is the expected
+pattern: a transformer should help most on the cases plain TF-IDF genuinely struggles to
+disambiguate, not spread its improvement evenly.
+
+The DistilBERT numbers come from `notebooks/finetune_distilbert_ag_news.ipynb` (3 epochs, T4
+GPU, ~18 min) and are independently reproducible locally with
+`scripts/evaluate_transformer.py` once the fine-tuned weights are copied into
+`models/ag_news_distilbert/` — see "Experiment tracking" below.
 
 ## Running it
 
@@ -131,6 +138,26 @@ exercises the full FastAPI app, including asserting that a fresh checkout with n
 weights present degrades gracefully (`transformer_loaded: false`, a clear `transformer_status`
 message, `transformer: null` from `/predict`) rather than erroring.
 
+### Experiment tracking (MLflow)
+
+Once the fine-tuned weights are in `models/ag_news_distilbert/` (see "Running the notebook"
+above), `scripts/evaluate_transformer.py` independently reproduces the baseline-vs-transformer
+comparison — it doesn't just trust the numbers the notebook printed, it re-runs both models
+against the real 7,600-row test set itself and logs the run to MLflow:
+
+```bash
+python scripts/evaluate_transformer.py
+mlflow ui --backend-store-uri sqlite:///mlflow.db   # http://localhost:5000
+```
+
+Logs both models' accuracy, macro F1, and per-class F1 as MLflow metrics, plus a saved
+`docs/transformer_vs_baseline.png` comparison chart as an MLflow artifact. Same local-SQLite,
+zero-external-services approach as this portfolio's other MLflow-tracked projects
+(`swiss-claims-assistant`, `bedding-franchise-erp`). Deliberately not wired into CI: the
+fine-tuned weights are gitignored on purpose (see above), so a fresh CI checkout never has them
+to evaluate against — this script is for whoever has actually run the notebook and has real
+weights sitting locally.
+
 ### Docker
 
 ```bash
@@ -144,9 +171,6 @@ learned the hard way while deploying an earlier project in this portfolio.
 
 ## What I'd do next
 
-- Run the Colab notebook and drop the fine-tuned DistilBERT weights in, so the landing page's
-  side-by-side comparison shows a real transformer prediction instead of the "not loaded yet"
-  state.
 - Add a confidence-threshold "unsure" state to the UI for genuinely ambiguous headlines (e.g.
   where the top two class probabilities are close), rather than only ever showing a single
   confident label.
