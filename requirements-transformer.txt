@@ -1,0 +1,17 @@
+# Heavier deps needed ONLY to run the fine-tuned DistilBERT transformer locally
+# (real side-by-side predictions in the app once weights are in
+# models/ag_news_distilbert/) and to run scripts/evaluate_transformer.py (the
+# MLflow-tracked baseline-vs-transformer comparison + chart).
+#
+# Install these on top of the light base:
+#     pip install -r requirements.txt
+#     pip install -r requirements-transformer.txt
+#
+# Kept separate on purpose: torch alone is a 400MB-2GB download, and a free-tier
+# host running only the baseline neither needs it nor has the memory to load a
+# transformer -- so the deployed service installs requirements.txt only.
+
+torch==2.13.0
+transformers==5.15.1
+mlflow==3.15.1
+matplotlib==3.10.9

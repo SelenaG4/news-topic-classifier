@@ -110,10 +110,23 @@ uvicorn app.main:app --reload
 Open `http://localhost:8000/` for the landing page, or `http://localhost:8000/docs` for the
 interactive API reference. The baseline trains itself at startup (~15s); no setup needed for it.
 
-`torch`/`transformers` are listed in `requirements.txt` but only actually needed once you have
-fine-tuned weights to load — if you only want to run the baseline and skip installing them
-(they're a multi-hundred-MB download), comment those two lines out; the service degrades
-gracefully and reports `transformer_loaded: false` instead of crashing.
+Dependencies are split into two files on purpose:
+
+- `requirements.txt` — the light, always-needed base (FastAPI, the sklearn baseline, tests). This
+  alone boots the full service; with no transformer weights present it serves the baseline and
+  reports `transformer_loaded: false` honestly. Peak memory ~380 MB, so it runs on a small
+  free-tier host.
+- `requirements-transformer.txt` — the heavier deps (`torch`, `transformers`, plus `mlflow` /
+  `matplotlib` for the eval script). Install these too, and drop the fine-tuned weights into
+  `models/ag_news_distilbert/`, to get real side-by-side transformer predictions locally:
+
+  ```bash
+  pip install -r requirements-transformer.txt
+  ```
+
+  `torch` alone is a 400 MB–2 GB download, which is exactly why it's kept out of the base and out
+  of the deployed service — a live demo running only the baseline neither needs it nor (on a
+  free 512 MB instance) has the memory to load a transformer.
 
 ### API
 
@@ -169,12 +182,24 @@ docker run -p 8000:8000 news-topic-classifier
 their own `$PORT` are respected automatically, rather than the port being hardcoded — a lesson
 learned the hard way while deploying an earlier project in this portfolio.
 
+### Live demo
+
+Deployed on Render's free tier: **[link added once deployed]**. The live service installs
+`requirements.txt` only (the light base), so it runs the **classical baseline** — submit a
+headline on the landing page and get a real, live topic prediction — and honestly reports the
+transformer as not loaded (`transformer_loaded: false`). That's deliberate, not a shortcut: a
+free 512 MB instance can't hold PyTorch plus a fine-tuned DistilBERT in memory, so the
+transformer is a **local** capability (see "Running it"), while its real, measured advantage over
+the baseline is documented and reproducible above (the comparison table, the chart, and
+`scripts/evaluate_transformer.py`). The free tier also spins the service down after 15 minutes
+idle, so the first request after a lull takes ~30-50s to wake it up.
+
 ## What I'd do next
 
 - Add a confidence-threshold "unsure" state to the UI for genuinely ambiguous headlines (e.g.
   where the top two class probabilities are close), rather than only ever showing a single
   confident label.
-- Try a distilled/quantized version of the fine-tuned model for faster CPU inference, since this
-  is meant to run on a free-tier host without a GPU.
-- Push this repo, deploy the service to Render (same recipe as the other two projects in this
-  portfolio), and add it to the portfolio site's project list and filter taxonomy.
+- Try a distilled/quantized version of the fine-tuned model (ONNX Runtime or int8) light enough
+  to actually serve the transformer live within a small memory budget — the natural way to get
+  the side-by-side comparison onto the free-tier demo, not just into the README.
+- Add this project to the portfolio site's project list and filter taxonomy.
